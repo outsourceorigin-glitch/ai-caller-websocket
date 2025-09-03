@@ -2,14 +2,21 @@ const { WebSocketServer } = require('ws');
 const WebSocket = require('ws');
 
 console.log('🚀 Starting dedicated WebSocket server for Twilio Media Streams...');
+console.log('🔑 OpenAI API Key:', process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...` : 'NOT SET');
+console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 
-// Create WebSocket server on port 8080
+// Use Scalingo's PORT environment variable or default to 8080
+const PORT = process.env.PORT || 8080;
+
+// Create WebSocket server - bind to all interfaces (0.0.0.0)
 const wss = new WebSocketServer({ 
-  port: 8080,
+  port: PORT,
+  host: '0.0.0.0',
   path: '/twilio-stream'
 });
 
-console.log('🌐 WebSocket server running on ws://localhost:8080/twilio-stream');
+console.log(`🌐 WebSocket server running on ws://0.0.0.0:${PORT}/twilio-stream`);
+console.log(`🌍 External URL: wss://ai-order.osc-fr1.scalingo.io/twilio-stream`);
 
 wss.on('connection', (ws, request) => {
   console.log('📞 New Twilio Media Stream connection established');
@@ -23,6 +30,12 @@ wss.on('connection', (ws, request) => {
   const initOpenAI = async () => {
     try {
       console.log('🤖 Connecting to OpenAI Realtime API...');
+      
+      // Check if OpenAI API key is available
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('❌ OPENAI_API_KEY environment variable not set!');
+        return;
+      }
       
       // Create OpenAI WebSocket connection
       openaiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
