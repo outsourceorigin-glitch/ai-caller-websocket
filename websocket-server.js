@@ -33,6 +33,7 @@ wss.on('connection', (ws, request) => {
   let callSid = '';
   let isOpenAIConnected = false;
   let sessionCreated = false;
+  let sequenceNumber = 0; // Track sequence numbers for Twilio
 
   // Initialize OpenAI Realtime connection
   const initOpenAI = async () => {
@@ -110,14 +111,19 @@ Start speaking right away when the call connects!`,
               // Forward audio back to Twilio immediately
               console.log('🔊 Forwarding audio chunk to Twilio:', response.delta?.length || 0, 'bytes');
               if (ws.readyState === WebSocket.OPEN && streamSid && response.delta) {
+                sequenceNumber++;
+                // Convert base64 audio to the proper format for Twilio
                 const audioMessage = {
                   event: 'media',
+                  sequenceNumber: sequenceNumber.toString(),
                   streamSid: streamSid,
                   media: {
-                    payload: response.delta
+                    timestamp: Date.now(),
+                    payload: response.delta  // OpenAI already sends base64 encoded g711_ulaw
                   }
                 };
                 ws.send(JSON.stringify(audioMessage));
+                console.log('📤 Sent audio to Twilio stream:', streamSid, 'seq:', sequenceNumber);
               }
               break;
               
