@@ -108,7 +108,8 @@ Start speaking right away when the call connects!`,
               
             case 'response.audio.delta':
               // Forward audio back to Twilio immediately
-              if (ws.readyState === WebSocket.OPEN && streamSid) {
+              console.log('🔊 Forwarding audio chunk to Twilio:', response.delta?.length || 0, 'bytes');
+              if (ws.readyState === WebSocket.OPEN && streamSid && response.delta) {
                 const audioMessage = {
                   event: 'media',
                   streamSid: streamSid,
@@ -140,8 +141,16 @@ Start speaking right away when the call connects!`,
               console.error('❌ OpenAI error:', response.error);
               break;
               
+            case 'response.audio_transcript.delta':
+              // Log transcript for debugging but don't forward
+              console.log('📝 AI transcript:', response.delta);
+              break;
+              
             default:
               console.log('📋 OpenAI event:', response.type);
+              if (response.type && response.type.includes('audio')) {
+                console.log('🔊 Audio event details:', JSON.stringify(response, null, 2));
+              }
           }
         } catch (error) {
           console.error('❌ Error parsing OpenAI message:', error);
