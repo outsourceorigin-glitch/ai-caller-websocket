@@ -53,7 +53,7 @@ wss.on('connection', (ws, request) => {
         const sessionConfig = {
           type: 'session.update',
           session: {
-            modalities: ['audio'],
+            modalities: ['audio', 'text'],
             instructions: `You are the AI assistant for Big Daddy restaurant. Start immediately with: "Hi! Welcome to Big Daddy! I'm here to take your order. What would you like today?"
 
 MENU: Chicken Burger: $12.99, Beef Burger: $19.99
