@@ -2,16 +2,23 @@ const { WebSocketServer } = require('ws');
 const WebSocket = require('ws');
 
 console.log('🚀 Starting dedicated WebSocket server for Twilio Media Streams...');
-console.log('🔑 OpenAI API Key:', process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...` : 'NOT SET');
 console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 
-// Use Scalingo's PORT environment variable or default to 8080
+// Check for OpenAI API key
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ OPENAI_API_KEY environment variable is required');
+  process.exit(1);
+}
+
+console.log('🔑 OpenAI API Key:', process.env.OPENAI_API_KEY.substring(0, 10) + '...');
+
+// Get port from environment or default to 8080
 const PORT = process.env.PORT || 8080;
 
-// Create WebSocket server - bind to all interfaces (0.0.0.0)
+// Create WebSocket server
 const wss = new WebSocketServer({ 
   port: PORT,
-  host: '0.0.0.0',
+  host: '0.0.0.0', // Listen on all interfaces for external access
   path: '/twilio-stream'
 });
 
@@ -25,17 +32,12 @@ wss.on('connection', (ws, request) => {
   let streamSid = '';
   let callSid = '';
   let isOpenAIConnected = false;
+  let sessionCreated = false;
 
   // Initialize OpenAI Realtime connection
   const initOpenAI = async () => {
     try {
       console.log('🤖 Connecting to OpenAI Realtime API...');
-      
-      // Check if OpenAI API key is available
-      if (!process.env.OPENAI_API_KEY) {
-        console.error('❌ OPENAI_API_KEY environment variable not set!');
-        return;
-      }
       
       // Create OpenAI WebSocket connection
       openaiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
@@ -53,12 +55,18 @@ wss.on('connection', (ws, request) => {
         const sessionConfig = {
           type: 'session.update',
           session: {
-            modalities: ['audio', 'text'],
-            instructions: `You are the AI assistant for Big Daddy restaurant. Start immediately with: "Hi! Welcome to Big Daddy! I'm here to take your order. What would you like today?"
+            modalities: ['audio', 'text'], // ✅ Fixed: Both audio and text modalities
+            instructions: `You are the AI assistant for Big Daddy restaurant. 
 
-MENU: Chicken Burger: $12.99, Beef Burger: $19.99
+IMMEDIATELY when the session starts, say: "Hi! Welcome to Big Daddy! I'm here to take your order. What would you like today?"
 
-Be natural, friendly, and efficient. Take their order, get their name and address, confirm everything, and calculate the total.`,
+MENU: 
+- Chicken Burger: $12.99
+- Beef Burger: $19.99
+
+Be natural, friendly, and efficient. Take their order, get their name and address, confirm everything, and calculate the total.
+
+Start speaking right away when the call connects!`,
             voice: 'alloy',
             input_audio_format: 'g711_ulaw',
             output_audio_format: 'g711_ulaw',
@@ -84,6 +92,18 @@ Be natural, friendly, and efficient. Take their order, get their name and addres
           switch (response.type) {
             case 'session.created':
               console.log('🎯 OpenAI session created - AI is ready!');
+              sessionCreated = true;
+              
+              // ✅ Trigger immediate greeting
+              console.log('🎤 Triggering immediate AI greeting...');
+              const greetingTrigger = {
+                type: 'response.create',
+                response: {
+                  modalities: ['audio'],
+                  instructions: 'Say the greeting immediately: "Hi! Welcome to Big Daddy! I\'m here to take your order. What would you like today?"'
+                }
+              };
+              openaiWs.send(JSON.stringify(greetingTrigger));
               break;
               
             case 'response.audio.delta':
@@ -119,6 +139,9 @@ Be natural, friendly, and efficient. Take their order, get their name and addres
             case 'error':
               console.error('❌ OpenAI error:', response.error);
               break;
+              
+            default:
+              console.log('📋 OpenAI event:', response.type);
           }
         } catch (error) {
           console.error('❌ Error parsing OpenAI message:', error);
