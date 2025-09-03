@@ -99,7 +99,7 @@ Start speaking right away when the call connects!`,
               const greetingTrigger = {
                 type: 'response.create',
                 response: {
-                  modalities: ['audio'],
+                  modalities: ['audio', 'text'],
                   instructions: 'Say the greeting immediately: "Hi! Welcome to Big Daddy! I\'m here to take your order. What would you like today?"'
                 }
               };
